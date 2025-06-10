@@ -1,6 +1,8 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import { readFileSync, mkdirSync, copyFileSync } from "fs";
+import { join } from "path";
 
 const banner =
 `/*
@@ -10,6 +12,12 @@ if you want to view the source, please visit the github repository of this plugi
 `;
 
 const prod = (process.argv[2] === 'production');
+const manifest = JSON.parse(readFileSync('manifest.json', 'utf8'));
+const outDir = prod ? join('dist', manifest.id) : '.';
+const outFile = prod ? join(outDir, 'main.js') : 'main.js';
+if (prod) {
+    mkdirSync(outDir, { recursive: true });
+}
 
 const context = await esbuild.context({
 	banner: {
@@ -37,13 +45,15 @@ const context = await esbuild.context({
 	logLevel: "info",
 	sourcemap: prod ? false : 'inline',
 	treeShaking: true,
-	outfile: 'main.js',
+        outfile: outFile,
 });
 
 if (prod) {
-	await context.rebuild();
-	process.exit(0);
+        await context.rebuild();
+        copyFileSync('manifest.json', join(outDir, 'manifest.json'));
+        copyFileSync('styles.css', join(outDir, 'styles.css'));
+        process.exit(0);
 } else {
-	await context.watch();
+        await context.watch();
 }
 
