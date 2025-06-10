@@ -1,0 +1,12 @@
+{
+    "id": "custom-panel",
+    "name": "Custom Panel",
+    "version": "1.0.0",
+    "minAppVersion": "0.15.0",
+    "description": "Create customizable collapsible panels with configurable borders, colors, and icons",
+    "author": "Your Name",
+    "authorUrl": "",
+    "fundingUrl": "",
+    "isDesktopOnly": false
+}
+
