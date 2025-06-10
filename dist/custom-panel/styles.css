@@ -1,0 +1,45 @@
+.cpanel-container {
+    margin: 16px 0;
+    font-family: var(--font-text);
+}
+
+.cpanel-header {
+    transition: background-color 0.2s ease;
+}
+
+.cpanel-header:hover {
+    filter: brightness(0.95);
+}
+
+.cpanel-icon {
+    display: inline-flex;
+    align-items: center;
+    font-size: 16px;
+}
+
+.cpanel-title {
+    color: var(--text-normal);
+}
+
+.cpanel-collapse-indicator {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.cpanel-content {
+    color: var(--text-normal);
+}
+
+.cpanel-content > *:first-child {
+    margin-top: 0;
+}
+
+.cpanel-content > *:last-child {
+    margin-bottom: 0;
+}
+
+.lucide-icon {
+    width: 16px;
+    height: 16px;
+}
+
