@@ -5,8 +5,9 @@ interface CPanelSettings {
     defaultBorderColor: string;
     defaultBorderWidth: string;
     defaultBorderRadius: string;
-    defaultBackgroundColor: string;
-    defaultHeaderBackgroundColor: string;
+    defaultBackground: string;
+    defaultHeaderBackground: string;
+    defaultHeaderTextColor: string;
     defaultHeaderHeight: string;
     defaultCollapsible: boolean;
     defaultCollapsed: boolean;
@@ -16,8 +17,9 @@ const DEFAULT_SETTINGS: CPanelSettings = {
     defaultBorderColor: '#cccccc',
     defaultBorderWidth: '1px',
     defaultBorderRadius: '8px',
-    defaultBackgroundColor: '#ffffff',
-    defaultHeaderBackgroundColor: '#f8f9fa',
+    defaultBackground: '#ffffff',
+    defaultHeaderBackground: '#f8f9fa',
+    defaultHeaderTextColor: 'var(--text-normal)',
     defaultHeaderHeight: '48px',
     defaultCollapsible: true,
     defaultCollapsed: false
@@ -39,7 +41,15 @@ export default class CPanelPlugin extends Plugin {
         this.addSettingTab(new CPanelSettingTab(this.app, this));
 
         // Добавляем стили
-        this.addStyles();
+        await this.addStyles();
+    }
+
+    onunload() {
+        // Удаляем стили при выгрузке плагина
+        const styleElement = document.getElementById('cpanel-styles');
+        if (styleElement) {
+            styleElement.remove();
+        }
     }
 
     async postProcessCPanel(el: HTMLElement, ctx: any) {
@@ -105,8 +115,9 @@ export default class CPanelPlugin extends Plugin {
         const borderColor = config.bordercolor || config.borderColor || this.settings.defaultBorderColor;
         const borderWidth = config.borderwidth || config.borderWidth || this.settings.defaultBorderWidth;
         const borderRadius = config.borderradius || config.borderRadius || this.settings.defaultBorderRadius;
-        const backgroundColor = config.background || config.backgroundColor || this.settings.defaultBackgroundColor;
-        const headerBackground = config.headerbackground || config.headerBackground || this.settings.defaultHeaderBackgroundColor;
+        const background = config.background || this.settings.defaultBackground;
+        const headerBackground = config.headerbackground || this.settings.defaultHeaderBackground;
+        const headerTextColor = config.headertextcolor || config.headerTextColor || this.settings.defaultHeaderTextColor;
         const headerHeight = config.headerheight || config.headerHeight || this.settings.defaultHeaderHeight;
         const collapsible = config.collapsible !== undefined ? config.collapsible === 'true' : this.settings.defaultCollapsible;
         const collapsed = config.collapsed !== undefined ? config.collapsed === 'true' : this.settings.defaultCollapsed;
@@ -118,7 +129,7 @@ export default class CPanelPlugin extends Plugin {
 
         panel.style.border = `${borderWidth} solid ${borderColor}`;
         panel.style.borderRadius = borderRadius;
-        panel.style.backgroundColor = backgroundColor;
+        panel.style.background = background;
         panel.style.overflow = 'hidden';
 
         // Создаем заголовок
@@ -126,7 +137,8 @@ export default class CPanelPlugin extends Plugin {
             cls: 'cpanel-header'
         });
 
-        header.style.backgroundColor = headerBackground;
+        header.style.background = headerBackground;
+        header.style.color = headerTextColor;
         header.style.height = headerHeight;
         header.style.minHeight = headerHeight;
         header.style.padding = '0 16px';
@@ -162,6 +174,7 @@ export default class CPanelPlugin extends Plugin {
         });
         titleElement.style.fontWeight = '600';
         titleElement.style.fontSize = '16px';
+        titleElement.style.color = headerTextColor;
 
         // Добавляем индикатор сворачивания
         let collapseIndicator: HTMLElement | null = null;
@@ -172,6 +185,7 @@ export default class CPanelPlugin extends Plugin {
             collapseIndicator.style.marginLeft = 'auto';
             collapseIndicator.style.transform = collapsed ? 'rotate(-90deg)' : 'rotate(0deg)';
             collapseIndicator.style.transition = 'transform 0.2s ease';
+            collapseIndicator.style.color = headerTextColor;
             collapseIndicator.innerHTML = '▼';
         }
 
@@ -179,7 +193,7 @@ export default class CPanelPlugin extends Plugin {
         const contentDiv = panel.createDiv({
             cls: 'cpanel-content'
         });
-        contentDiv.style.padding = '8px';
+        contentDiv.style.padding = '16px';
         contentDiv.style.display = collapsed ? 'none' : 'block';
 
         // Рендерим markdown контент
@@ -211,11 +225,10 @@ export default class CPanelPlugin extends Plugin {
         }
     }
 
-    addStyles() {
-        const style = document.createElement('style');
-        style.textContent = `
+    async addStyles() {
+        const defaultStyles = `
             .cpanel-container {
-                margin: 8px 0;
+                margin: 16px 0;
                 font-family: var(--font-text);
             }
 
@@ -259,6 +272,23 @@ export default class CPanelPlugin extends Plugin {
                 height: 16px;
             }
         `;
+
+        let cssContent = defaultStyles;
+
+        try {
+            // Пытаемся загрузить внешний CSS файл
+            const cssPath = `.obsidian/plugins/${this.manifest.id}/styles.css`;
+            const externalStyles = await this.app.vault.adapter.read(cssPath);
+            cssContent = externalStyles;
+            console.log('CPanel: Successfully loaded external styles.css');
+        } catch (error) {
+            console.log('CPanel: External styles.css not found, using default styles');
+        }
+
+        // Применяем стили
+        const style = document.createElement('style');
+        style.textContent = cssContent;
+        style.id = 'cpanel-styles';
         document.head.appendChild(style);
     }
 
@@ -321,27 +351,39 @@ class CPanelSettingTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 }));
 
-        // Цвет фона по умолчанию
+        // Цвет/фон панели по умолчанию
         new Setting(containerEl)
-            .setName('Default Background Color')
-            .setDesc('Default background color for panel content')
+            .setName('Default Panel Background')
+            .setDesc('Default background for panel content (supports colors, gradients, images)')
             .addText(text => text
                 .setPlaceholder('#ffffff')
-                .setValue(this.plugin.settings.defaultBackgroundColor)
+                .setValue(this.plugin.settings.defaultBackground)
                 .onChange(async (value) => {
-                    this.plugin.settings.defaultBackgroundColor = value;
+                    this.plugin.settings.defaultBackground = value;
                     await this.plugin.saveSettings();
                 }));
 
-        // Цвет фона заголовка по умолчанию
+        // Цвет/фон заголовка по умолчанию
         new Setting(containerEl)
-            .setName('Default Header Background Color')
-            .setDesc('Default background color for panel headers')
+            .setName('Default Header Background')
+            .setDesc('Default background for panel headers (supports colors, gradients, images)')
             .addText(text => text
                 .setPlaceholder('#f8f9fa')
-                .setValue(this.plugin.settings.defaultHeaderBackgroundColor)
+                .setValue(this.plugin.settings.defaultHeaderBackground)
                 .onChange(async (value) => {
-                    this.plugin.settings.defaultHeaderBackgroundColor = value;
+                    this.plugin.settings.defaultHeaderBackground = value;
+                    await this.plugin.saveSettings();
+                }));
+
+        // Цвет текста заголовка по умолчанию
+        new Setting(containerEl)
+            .setName('Default Header Text Color')
+            .setDesc('Default text color for panel headers')
+            .addText(text => text
+                .setPlaceholder('var(--text-normal)')
+                .setValue(this.plugin.settings.defaultHeaderTextColor)
+                .onChange(async (value) => {
+                    this.plugin.settings.defaultHeaderTextColor = value;
                     await this.plugin.saveSettings();
                 }));
 

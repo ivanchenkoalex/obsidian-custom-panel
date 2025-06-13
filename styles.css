@@ -4,7 +4,7 @@
 }
 
 .cpanel-header {
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .cpanel-header:hover {
@@ -18,12 +18,12 @@
 }
 
 .cpanel-title {
-    color: var(--text-normal);
+    /* Цвет задается через inline стили из настроек */
 }
 
 .cpanel-collapse-indicator {
     font-size: 12px;
-    color: var(--text-muted);
+    /* Цвет задается через inline стили из настроек */
 }
 
 .cpanel-content {

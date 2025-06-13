@@ -32,8 +32,9 @@ var DEFAULT_SETTINGS = {
   defaultBorderColor: "#cccccc",
   defaultBorderWidth: "1px",
   defaultBorderRadius: "8px",
-  defaultBackgroundColor: "#ffffff",
-  defaultHeaderBackgroundColor: "#f8f9fa",
+  defaultBackground: "#ffffff",
+  defaultHeaderBackground: "#f8f9fa",
+  defaultHeaderTextColor: "var(--text-normal)",
   defaultHeaderHeight: "48px",
   defaultCollapsible: true,
   defaultCollapsed: false
@@ -44,7 +45,13 @@ var CPanelPlugin = class extends import_obsidian.Plugin {
     this.registerMarkdownCodeBlockProcessor("cpanel", this.processCPanelBlock.bind(this));
     this.registerMarkdownPostProcessor(this.postProcessCPanel.bind(this));
     this.addSettingTab(new CPanelSettingTab(this.app, this));
-    this.addStyles();
+    await this.addStyles();
+  }
+  onunload() {
+    const styleElement = document.getElementById("cpanel-styles");
+    if (styleElement) {
+      styleElement.remove();
+    }
   }
   async postProcessCPanel(el, ctx) {
     const codeBlocks = el.querySelectorAll("pre > code");
@@ -90,8 +97,9 @@ var CPanelPlugin = class extends import_obsidian.Plugin {
     const borderColor = config.bordercolor || config.borderColor || this.settings.defaultBorderColor;
     const borderWidth = config.borderwidth || config.borderWidth || this.settings.defaultBorderWidth;
     const borderRadius = config.borderradius || config.borderRadius || this.settings.defaultBorderRadius;
-    const backgroundColor = config.background || config.backgroundColor || this.settings.defaultBackgroundColor;
-    const headerBackground = config.headerbackground || config.headerBackground || this.settings.defaultHeaderBackgroundColor;
+    const background = config.background || this.settings.defaultBackground;
+    const headerBackground = config.headerbackground || this.settings.defaultHeaderBackground;
+    const headerTextColor = config.headertextcolor || config.headerTextColor || this.settings.defaultHeaderTextColor;
     const headerHeight = config.headerheight || config.headerHeight || this.settings.defaultHeaderHeight;
     const collapsible = config.collapsible !== void 0 ? config.collapsible === "true" : this.settings.defaultCollapsible;
     const collapsed = config.collapsed !== void 0 ? config.collapsed === "true" : this.settings.defaultCollapsed;
@@ -100,12 +108,13 @@ var CPanelPlugin = class extends import_obsidian.Plugin {
     });
     panel.style.border = `${borderWidth} solid ${borderColor}`;
     panel.style.borderRadius = borderRadius;
-    panel.style.backgroundColor = backgroundColor;
+    panel.style.background = background;
     panel.style.overflow = "hidden";
     const header = panel.createDiv({
       cls: "cpanel-header"
     });
-    header.style.backgroundColor = headerBackground;
+    header.style.background = headerBackground;
+    header.style.color = headerTextColor;
     header.style.height = headerHeight;
     header.style.minHeight = headerHeight;
     header.style.padding = "0 16px";
@@ -133,6 +142,7 @@ var CPanelPlugin = class extends import_obsidian.Plugin {
     });
     titleElement.style.fontWeight = "600";
     titleElement.style.fontSize = "16px";
+    titleElement.style.color = headerTextColor;
     let collapseIndicator = null;
     if (collapsible) {
       collapseIndicator = header.createSpan({
@@ -141,12 +151,13 @@ var CPanelPlugin = class extends import_obsidian.Plugin {
       collapseIndicator.style.marginLeft = "auto";
       collapseIndicator.style.transform = collapsed ? "rotate(-90deg)" : "rotate(0deg)";
       collapseIndicator.style.transition = "transform 0.2s ease";
+      collapseIndicator.style.color = headerTextColor;
       collapseIndicator.innerHTML = "\u25BC";
     }
     const contentDiv = panel.createDiv({
       cls: "cpanel-content"
     });
-    contentDiv.style.padding = "8px";
+    contentDiv.style.padding = "16px";
     contentDiv.style.display = collapsed ? "none" : "block";
     if (content) {
       const component = new import_obsidian.Component();
@@ -172,11 +183,10 @@ var CPanelPlugin = class extends import_obsidian.Plugin {
       });
     }
   }
-  addStyles() {
-    const style = document.createElement("style");
-    style.textContent = `
+  async addStyles() {
+    const defaultStyles = `
             .cpanel-container {
-                margin: 8px 0;
+                margin: 16px 0;
                 font-family: var(--font-text);
             }
 
@@ -220,6 +230,18 @@ var CPanelPlugin = class extends import_obsidian.Plugin {
                 height: 16px;
             }
         `;
+    let cssContent = defaultStyles;
+    try {
+      const cssPath = `.obsidian/plugins/${this.manifest.id}/styles.css`;
+      const externalStyles = await this.app.vault.adapter.read(cssPath);
+      cssContent = externalStyles;
+      console.log("CPanel: Successfully loaded external styles.css");
+    } catch (error) {
+      console.log("CPanel: External styles.css not found, using default styles");
+    }
+    const style = document.createElement("style");
+    style.textContent = cssContent;
+    style.id = "cpanel-styles";
     document.head.appendChild(style);
   }
   async loadSettings() {
@@ -250,12 +272,16 @@ var CPanelSettingTab = class extends import_obsidian.PluginSettingTab {
       this.plugin.settings.defaultBorderRadius = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian.Setting(containerEl).setName("Default Background Color").setDesc("Default background color for panel content").addText((text) => text.setPlaceholder("#ffffff").setValue(this.plugin.settings.defaultBackgroundColor).onChange(async (value) => {
-      this.plugin.settings.defaultBackgroundColor = value;
+    new import_obsidian.Setting(containerEl).setName("Default Panel Background").setDesc("Default background for panel content (supports colors, gradients, images)").addText((text) => text.setPlaceholder("#ffffff").setValue(this.plugin.settings.defaultBackground).onChange(async (value) => {
+      this.plugin.settings.defaultBackground = value;
       await this.plugin.saveSettings();
     }));
-    new import_obsidian.Setting(containerEl).setName("Default Header Background Color").setDesc("Default background color for panel headers").addText((text) => text.setPlaceholder("#f8f9fa").setValue(this.plugin.settings.defaultHeaderBackgroundColor).onChange(async (value) => {
-      this.plugin.settings.defaultHeaderBackgroundColor = value;
+    new import_obsidian.Setting(containerEl).setName("Default Header Background").setDesc("Default background for panel headers (supports colors, gradients, images)").addText((text) => text.setPlaceholder("#f8f9fa").setValue(this.plugin.settings.defaultHeaderBackground).onChange(async (value) => {
+      this.plugin.settings.defaultHeaderBackground = value;
+      await this.plugin.saveSettings();
+    }));
+    new import_obsidian.Setting(containerEl).setName("Default Header Text Color").setDesc("Default text color for panel headers").addText((text) => text.setPlaceholder("var(--text-normal)").setValue(this.plugin.settings.defaultHeaderTextColor).onChange(async (value) => {
+      this.plugin.settings.defaultHeaderTextColor = value;
       await this.plugin.saveSettings();
     }));
     new import_obsidian.Setting(containerEl).setName("Default Header Height").setDesc("Default height for panel headers (e.g., 48px, 3rem, 60px)").addText((text) => text.setPlaceholder("48px").setValue(this.plugin.settings.defaultHeaderHeight).onChange(async (value) => {
